@@ -2,7 +2,8 @@
 
 backstage:
   replicas: 1
-
+  revisionHistoryLimit: 0
+  
   image:
     registry: docker.io
     repository: renatts/backstage-app
