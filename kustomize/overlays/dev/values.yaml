@@ -1,16 +1,53 @@
 # Dev environment — targeted at a local kind cluster.
-# Image is loaded into kind via `kind load docker-image backstage:dev` (no registry push).
 
 backstage:
   replicas: 1
 
   image:
-    # After `docker build -t backstage:dev .` + `kind load docker-image backstage:dev`
-    # the image lives in containerd as docker.io/library/backstage:dev.
     registry: docker.io
-    repository: library/backstage
-    tag: dev
-    pullPolicy: IfNotPresent
+    repository: renatts/backstage-app
+    tag: latest
+    pullPolicy: Always
+
+  containerSecurityContext:
+    runAsNonRoot: true
+    runAsUser: 1000
+    allowPrivilegeEscalation: false
+    capabilities:
+      drop: ["ALL"]
+
+  podSecurityContext:
+    fsGroup: 1000
+    seccompProfile:
+      type: RuntimeDefault
+
+  startupProbe:
+    httpGet:
+      path: /.backstage/health/v1/liveness
+      port: 7007
+      scheme: HTTP
+    initialDelaySeconds: 10
+    periodSeconds: 5
+    failureThreshold: 30
+    timeoutSeconds: 2
+
+  readinessProbe:
+    httpGet:
+      path: /.backstage/health/v1/readiness
+      port: 7007
+      scheme: HTTP
+    periodSeconds: 10
+    timeoutSeconds: 2
+    failureThreshold: 3
+
+  livenessProbe:
+    httpGet:
+      path: /.backstage/health/v1/liveness
+      port: 7007
+      scheme: HTTP
+    periodSeconds: 10
+    timeoutSeconds: 2
+    failureThreshold: 3
 
   resources:
     requests:
@@ -41,11 +78,14 @@ backstage:
         guest:
           dangerouslyAllowOutsideDevelopment: true
 
-# No bundled PostgreSQL in dev (SQLite in-memory is fine).
+serviceAccount:
+  create: false
+  name: backstage
+  automountServiceAccountToken: true
+
 postgresql:
   enabled: false
 
-# Expose via kind's host port mapping (80/443 -> control-plane node).
 ingress:
   enabled: true
   className: nginx

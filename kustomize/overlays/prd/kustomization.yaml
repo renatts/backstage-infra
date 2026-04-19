@@ -70,9 +70,7 @@ helmCharts:
     version: "2.6.3"
     releaseName: backstage
     namespace: backstage-prd
-    valuesFile: ../../base/values.yaml
-    additionalValuesFiles:
-      - values.yaml
+    valuesFile: values.yaml
 
 commonLabels:
   environment: prd
