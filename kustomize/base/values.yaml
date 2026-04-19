@@ -1,0 +1,55 @@
+# Shared Helm values for all environments.
+# Only overrides vs the upstream chart defaults go here.
+# Chart defaults: https://github.com/backstage/charts/blob/main/charts/backstage/values.yaml
+
+backstage:
+  image:
+    pullPolicy: IfNotPresent
+
+  containerSecurityContext:
+    runAsNonRoot: true
+    runAsUser: 1000
+    allowPrivilegeEscalation: false
+    capabilities:
+      drop: ["ALL"]
+
+  podSecurityContext:
+    fsGroup: 1000
+    seccompProfile:
+      type: RuntimeDefault
+
+  # Backstage backend cold start is 30-60s; give startup room before liveness runs.
+  startupProbe:
+    httpGet:
+      path: /.backstage/health/v1/liveness
+      port: 7007
+      scheme: HTTP
+    initialDelaySeconds: 10
+    periodSeconds: 5
+    failureThreshold: 30
+    timeoutSeconds: 2
+
+  readinessProbe:
+    httpGet:
+      path: /.backstage/health/v1/readiness
+      port: 7007
+      scheme: HTTP
+    periodSeconds: 10
+    timeoutSeconds: 2
+    failureThreshold: 3
+
+  livenessProbe:
+    httpGet:
+      path: /.backstage/health/v1/liveness
+      port: 7007
+      scheme: HTTP
+    periodSeconds: 10
+    timeoutSeconds: 2
+    failureThreshold: 3
+
+# Use the pre-created ServiceAccount from kustomize/base/namespace (disables chart creation).
+# automountServiceAccountToken: true because the Kubernetes plugin needs the projected token.
+serviceAccount:
+  create: false
+  name: backstage
+  automountServiceAccountToken: true

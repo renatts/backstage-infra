@@ -1,0 +1,57 @@
+apiVersion: argoproj.io/v1alpha1
+kind: ApplicationSet
+metadata:
+  name: backstage
+  namespace: argocd
+spec:
+  goTemplate: true
+  goTemplateOptions: ["missingkey=error"]
+
+  generators:
+    - list:
+        elements:
+          # Single-cluster kind setup. Add a prd entry with a real cluster server
+          # URL + Argo CD cluster secret when deploying beyond local.
+          - env: dev
+            namespace: backstage-dev
+            server: https://kubernetes.default.svc
+
+  template:
+    metadata:
+      name: backstage-{{.env}}
+      labels:
+        app.kubernetes.io/name: backstage
+        environment: "{{.env}}"
+      annotations:
+        argocd.argoproj.io/sync-wave: "10"
+    spec:
+      project: default
+
+      source:
+        repoURL: https://github.com/renatts/backstage-infra.git
+        targetRevision: HEAD
+        path: kustomize/overlays/{{.env}}
+
+      destination:
+        server: "{{.server}}"
+        namespace: "{{.namespace}}"
+
+      syncPolicy:
+        automated:
+          prune: true
+          selfHeal: true
+        syncOptions:
+          - ApplyOutOfSyncOnly=true
+          - ServerSideApply=true
+          - CreateNamespace=false  # namespace is rendered by the overlay itself
+        retry:
+          limit: 5
+          backoff:
+            duration: 5s
+            factor: 2
+            maxDuration: 3m
+
+  # Keep child Application resources if the ApplicationSet itself is deleted.
+  # (Per-Application prune still runs on drift.)
+  syncPolicy:
+    preserveResourcesOnDeletion: true

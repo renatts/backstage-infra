@@ -1,0 +1,7 @@
+apiVersion: v1
+kind: Namespace
+metadata:
+  name: backstage  # patched by each overlay
+  labels:
+    app.kubernetes.io/name: backstage
+    app.kubernetes.io/managed-by: argocd

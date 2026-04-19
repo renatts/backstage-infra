@@ -1,0 +1,83 @@
+# Prd environment overrides — merged on top of kustomize/base/values.yaml
+
+backstage:
+  replicas: 2
+
+  image:
+    tag: "1.0.0"  # Pin to a specific immutable tag — never use "latest" in prd
+
+  resources:
+    requests:
+      cpu: 250m
+      memory: 512Mi
+    limits:
+      cpu: 1000m
+      memory: 1Gi
+
+  # Pod Disruption Budget — ensures at least 1 pod available during rolling updates
+  pdb:
+    create: true
+    minAvailable: 1
+
+  appConfig:
+    app:
+      baseUrl: https://backstage.example.com  # Replace
+
+    backend:
+      baseUrl: https://backstage.example.com  # Replace
+      listen:
+        port: 7007
+      cors:
+        origin: https://backstage.example.com  # Replace
+      database:
+        client: pg
+        connection:
+          host: ${POSTGRES_HOST}
+          port: ${POSTGRES_PORT}
+          user: ${POSTGRES_USER}
+          password: ${POSTGRES_PASSWORD}
+
+    auth:
+      environment: production
+      providers:
+        guest:
+          dangerouslyAllowOutsideDevelopment: false
+
+  # Inject DB credentials from a pre-existing Secret in the prd namespace.
+  # Create it manually or via Sealed Secrets / External Secrets Operator.
+  extraEnvVars:
+    - name: POSTGRES_HOST
+      valueFrom:
+        secretKeyRef:
+          name: backstage-postgres-secret
+          key: host
+    - name: POSTGRES_PORT
+      valueFrom:
+        secretKeyRef:
+          name: backstage-postgres-secret
+          key: port
+    - name: POSTGRES_USER
+      valueFrom:
+        secretKeyRef:
+          name: backstage-postgres-secret
+          key: username
+    - name: POSTGRES_PASSWORD
+      valueFrom:
+        secretKeyRef:
+          name: backstage-postgres-secret
+          key: password
+
+# Disable bundled PostgreSQL in prd — use an external managed database
+postgresql:
+  enabled: false
+
+ingress:
+  enabled: true
+  className: nginx
+  annotations:
+    nginx.ingress.kubernetes.io/ssl-redirect: "true"
+    cert-manager.io/cluster-issuer: letsencrypt-prod
+  host: backstage.example.com  # Replace
+  tls:
+    enabled: true
+    secretName: backstage-tls

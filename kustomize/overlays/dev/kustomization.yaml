@@ -1,0 +1,78 @@
+apiVersion: kustomize.config.k8s.io/v1beta1
+kind: Kustomization
+
+# Namespace resources: Namespace, ResourceQuota, LimitRange, ServiceAccount, RBAC
+resources:
+  - ../../base/namespace
+
+# Set namespace field on all namespaced resources from base
+namespace: backstage-dev
+
+# Patch the Namespace .metadata.name (namespace: field above doesn't affect Kind: Namespace)
+patches:
+  - target:
+      kind: Namespace
+      name: backstage
+    patch: |
+      - op: replace
+        path: /metadata/name
+        value: backstage-dev
+      - op: add
+        path: /metadata/labels/environment
+        value: dev
+
+  # Dev quotas — smaller limits, no LB services blocked
+  - target:
+      kind: ResourceQuota
+      name: backstage-quota
+    patch: |
+      - op: replace
+        path: /spec/hard/pods
+        value: "10"
+      - op: replace
+        path: /spec/hard/requests.cpu
+        value: "500m"
+      - op: replace
+        path: /spec/hard/requests.memory
+        value: 1Gi
+      - op: replace
+        path: /spec/hard/limits.cpu
+        value: "1"
+      - op: replace
+        path: /spec/hard/limits.memory
+        value: 2Gi
+      - op: replace
+        path: /spec/hard/requests.storage
+        value: 10Gi
+
+  # Dev LimitRange — smaller defaults
+  - target:
+      kind: LimitRange
+      name: backstage-limits
+    patch: |
+      - op: replace
+        path: /spec/limits/0/default/cpu
+        value: 250m
+      - op: replace
+        path: /spec/limits/0/default/memory
+        value: 256Mi
+      - op: replace
+        path: /spec/limits/0/defaultRequest/cpu
+        value: 50m
+      - op: replace
+        path: /spec/limits/0/defaultRequest/memory
+        value: 64Mi
+
+# Render the official Backstage Helm chart (requires --enable-helm in ArgoCD)
+helmCharts:
+  - name: backstage
+    repo: https://backstage.github.io/charts
+    version: "2.6.3"
+    releaseName: backstage
+    namespace: backstage-dev
+    valuesFile: ../../base/values.yaml
+    additionalValuesFiles:
+      - values.yaml
+
+commonLabels:
+  environment: dev

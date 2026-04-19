@@ -1,0 +1,21 @@
+# kind cluster with ingress-ready node + host port mappings for 80/443.
+# ingress-nginx's kind manifest looks for the `ingress-ready=true` label to
+# pin the controller to the control-plane node that has these port mappings.
+kind: Cluster
+apiVersion: kind.x-k8s.io/v1alpha4
+name: backstage
+nodes:
+  - role: control-plane
+    kubeadmConfigPatches:
+      - |
+        kind: InitConfiguration
+        nodeRegistration:
+          kubeletExtraArgs:
+            node-labels: "ingress-ready=true"
+    extraPortMappings:
+      - containerPort: 80
+        hostPort: 80
+        protocol: TCP
+      - containerPort: 443
+        hostPort: 443
+        protocol: TCP

@@ -1,0 +1,56 @@
+# Dev environment — targeted at a local kind cluster.
+# Image is loaded into kind via `kind load docker-image backstage:dev` (no registry push).
+
+backstage:
+  replicas: 1
+
+  image:
+    # After `docker build -t backstage:dev .` + `kind load docker-image backstage:dev`
+    # the image lives in containerd as docker.io/library/backstage:dev.
+    registry: docker.io
+    repository: library/backstage
+    tag: dev
+    pullPolicy: IfNotPresent
+
+  resources:
+    requests:
+      cpu: 100m
+      memory: 256Mi
+    limits:
+      cpu: 500m
+      memory: 512Mi
+
+  appConfig:
+    app:
+      baseUrl: http://backstage.127.0.0.1.nip.io
+    backend:
+      baseUrl: http://backstage.127.0.0.1.nip.io
+      listen:
+        port: 7007
+        host: 0.0.0.0
+      cors:
+        origin: http://backstage.127.0.0.1.nip.io
+        methods: [GET, HEAD, PATCH, POST, PUT, DELETE]
+        credentials: true
+      database:
+        client: better-sqlite3
+        connection: ':memory:'
+    auth:
+      environment: development
+      providers:
+        guest:
+          dangerouslyAllowOutsideDevelopment: true
+
+# No bundled PostgreSQL in dev (SQLite in-memory is fine).
+postgresql:
+  enabled: false
+
+# Expose via kind's host port mapping (80/443 -> control-plane node).
+ingress:
+  enabled: true
+  className: nginx
+  annotations:
+    nginx.ingress.kubernetes.io/ssl-redirect: "false"
+  host: backstage.127.0.0.1.nip.io
+  tls:
+    enabled: false
